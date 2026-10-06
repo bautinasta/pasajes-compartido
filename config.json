@@ -1,0 +1,26 @@
+{
+  "portal": "",
+  "zona_horaria": "America/Argentina/Buenos_Aires",
+  "origen": "SYD",
+  "destino": "EZE",
+  "fechas_ida": {
+    "desde": "2026-12-10",
+    "hasta": "2026-12-20"
+  },
+  "fechas_vuelta": {
+    "desde": "2027-02-20",
+    "hasta": "2027-02-25"
+  },
+  "adultos": 1,
+  "clase": "ECONOMY",
+  "moneda": "USD",
+  "mercado": "ar",
+  "idioma": "es",
+  "fuentes": [
+    "gflights"
+  ],
+  "presupuesto_consultas": 7,
+  "buscar_agencias": true,
+  "agencias_umbral_pct": 5.0,
+  "agencias_max_mes": 12
+}

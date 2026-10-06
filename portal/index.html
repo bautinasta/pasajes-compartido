@@ -1,0 +1,422 @@
+<title>Radar SYD–EZE</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Terminal: barra de indicadores arriba, serie y ranking en dos columnas,
+   matriz densa abajo, detalle al pie cuando se elige una celda. */
+:root{
+  --bg:#EFF1F4; --panel:#FFFFFF; --panel-2:#F5F7F9; --sunk:#E3E7EC;
+  --line:#D5DBE2; --line-2:#C2CAD4;
+  --ink:#10151C; --ink-2:#39424F; --mute:#6B7684; --faint:#949DA9;
+  --teal:#0E6F6B; --teal-soft:#DCEFEE;
+  --down:#15713B; --up:#A32B1F;
+  --s0:#E7EFEE; --s1:#C9E0DE; --s2:#A5CDCA; --s3:#7CB6B2; --s4:#519C98; --s5:#2E817D; --s6:#15625F;
+  --on-lo:#0C2B2A; --on-hi:#EEF6F5;
+  --f-sans:"IBM Plex Sans",-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0B0E12; --panel:#13171D; --panel-2:#181D24; --sunk:#0F1319;
+  --line:#242B34; --line-2:#333C47;
+  --ink:#E9EDF2; --ink-2:#BEC6D0; --mute:#8591A0; --faint:#657182;
+  --teal:#45BAB3; --teal-soft:#10322F;
+  --down:#52C77E; --up:#E8705F;
+  --s0:#141C1E; --s1:#17302E; --s2:#1C443F; --s3:#235954; --s4:#2D716B; --s5:#3E8E87; --s6:#5BAFA8;
+  --on-lo:#CDE6E3; --on-hi:#0A1113;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0B0E12; --panel:#13171D; --panel-2:#181D24; --sunk:#0F1319;
+  --line:#242B34; --line-2:#333C47;
+  --ink:#E9EDF2; --ink-2:#BEC6D0; --mute:#8591A0; --faint:#657182;
+  --teal:#45BAB3; --teal-soft:#10322F;
+  --down:#52C77E; --up:#E8705F;
+  --s0:#141C1E; --s1:#17302E; --s2:#1C443F; --s3:#235954; --s4:#2D716B; --s5:#3E8E87; --s6:#5BAFA8;
+  --on-lo:#CDE6E3; --on-hi:#0A1113;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-sans);font-size:13.5px;line-height:1.45}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:0 48px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+/* barra */
+.hdr{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding-block:16px 12px;
+     border-bottom:1px solid var(--line-2)}
+.tick{font-family:var(--f-mono);font-size:17px;font-weight:600;letter-spacing:.03em}
+.tick b{color:var(--teal);font-weight:600}
+.chip{font-family:var(--f-mono);font-size:11px;color:var(--mute);background:var(--panel);
+      border:1px solid var(--line);border-radius:3px;padding:3px 8px;white-space:nowrap}
+.chip b{color:var(--ink-2);font-weight:500}
+.stale{margin-left:auto;font-family:var(--f-mono);font-size:11px;color:var(--mute);display:flex;align-items:center;gap:7px}
+.stale i{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--faint);flex:none}
+.stale.viva i{background:var(--down)}
+
+/* indicadores */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:1px;background:var(--line);
+      border:1px solid var(--line);margin-top:16px}
+.kpi{background:var(--panel);padding:13px 15px 14px;min-width:0}
+.kpi .k{font-family:var(--f-mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.kpi .n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:26px;font-weight:600;
+        letter-spacing:-.02em;margin-top:5px;line-height:1.1}
+.kpi .n.vacio{color:var(--faint);font-weight:400}
+.kpi .n small{font-size:12px;font-weight:400;color:var(--mute);letter-spacing:.04em;margin-right:4px}
+.kpi .d{font-family:var(--f-mono);font-size:11px;margin-top:5px;color:var(--mute);line-height:1.5}
+.kpi .d.down{color:var(--down)}.kpi .d.up{color:var(--up)}
+.kpi svg{display:block;width:100%;height:26px;margin-top:8px;overflow:visible}
+
+/* paneles */
+.row{display:grid;grid-template-columns:minmax(0,1.62fr) minmax(0,1fr);gap:16px;margin-top:16px}
+.pnl{background:var(--panel);border:1px solid var(--line);min-width:0}
+.pnl>h2{font-family:var(--f-mono);font-size:10.5px;font-weight:500;letter-spacing:.15em;text-transform:uppercase;
+        color:var(--mute);margin:0;padding:11px 15px;border-bottom:1px solid var(--line);
+        display:flex;justify-content:space-between;align-items:center;gap:10px}
+.pnl>h2 em{font-style:normal;color:var(--faint);letter-spacing:.06em;text-transform:none;font-size:11px}
+.pnl .bd{padding:14px 15px 16px}
+.nada{font-family:var(--f-mono);font-size:11.5px;color:var(--faint);line-height:1.75;margin:0;
+      border-left:2px solid var(--line-2);padding-left:11px}
+
+svg.ch{display:block;width:100%;height:auto;overflow:visible}
+.ch .g{stroke:var(--line);stroke-width:1}
+.ch .ln{fill:none;stroke:var(--teal);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.ch .fl{fill:var(--teal);opacity:.1}
+.ch .tx{fill:var(--faint);font-family:var(--f-mono);font-size:9.5px}
+.ch .pt{fill:var(--teal);stroke:var(--panel);stroke-width:2}
+.ch .ref{stroke:var(--up);stroke-dasharray:3 4;stroke-width:1.2;opacity:.8}
+.ch .reftx{fill:var(--up);font-family:var(--f-mono);font-size:9.5px}
+.ch .cur{stroke:var(--mute);stroke-width:1;stroke-dasharray:3 3}
+.ch .hit{fill:transparent;cursor:crosshair}
+
+/* ranking */
+.rk{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:11px 12px;align-items:baseline;
+    padding:11px 0;border-top:1px solid var(--line)}
+.rk:first-child{border-top:0;padding-top:2px}
+.rk .ix{font-family:var(--f-mono);font-size:10.5px;color:var(--faint)}
+.rk .nm{font-weight:600;font-size:13.5px;min-width:0}
+.rk .mt{font-family:var(--f-mono);font-size:10.5px;color:var(--mute);margin-top:3px;line-height:1.5}
+.rk .pz{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:15px;font-weight:600;white-space:nowrap}
+.rk .dl{font-family:var(--f-mono);font-size:10px;color:var(--mute);text-align:right;margin-top:3px}
+.tagd{display:inline-block;font-family:var(--f-mono);font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;
+      border:1px solid var(--line-2);border-radius:2px;padding:1px 5px;color:var(--mute);margin-right:4px}
+.tagd.ok{border-color:var(--down);color:var(--down)}
+.src{display:inline-block;font-family:var(--f-mono);font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;
+     background:var(--teal-soft);color:var(--teal);border-radius:2px;padding:1px 6px;margin-left:6px}
+.vende{border-top:1px solid var(--line);margin-top:4px;padding-top:12px}
+.vende .k{font-family:var(--f-mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+          color:var(--faint);margin-bottom:8px}
+.ag{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:5px 0;
+    font-family:var(--f-mono);font-size:11.5px;color:var(--mute)}
+.ag b{color:var(--ink-2);font-weight:500;font-family:var(--f-sans);font-size:13px}
+.ag.mejor b{color:var(--teal);font-weight:600}
+.ag .n{font-variant-numeric:tabular-nums;white-space:nowrap}
+.ag.mejor .n{color:var(--teal);font-weight:600}
+.ag .t{font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);margin-left:5px}
+
+/* matriz */
+.mxwrap{overflow-x:auto}
+table.mx{border-collapse:separate;border-spacing:2px;width:100%;min-width:430px;font-variant-numeric:tabular-nums}
+table.mx th{font-family:var(--f-mono);font-size:9.5px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;
+            color:var(--faint);padding:2px 4px;white-space:nowrap}
+table.mx th.rw{text-align:right;padding-right:7px}
+table.mx td{padding:0}
+.c{width:100%;min-height:32px;display:flex;align-items:center;justify-content:center;border-radius:2px;
+   font-family:var(--f-mono);font-size:11px;font-weight:500;border:1.5px solid transparent;cursor:pointer;
+   background:var(--sunk);color:var(--faint);padding:2px}
+.c.na{background:repeating-linear-gradient(45deg,var(--sunk) 0 3px,transparent 3px 6px);cursor:default}
+.c:not(.na):hover,.c:focus-visible{border-color:var(--ink-2);outline:none}
+.c.best{border-color:var(--teal);box-shadow:inset 0 0 0 1.5px var(--panel)}
+.c.sel{border-color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--panel)}
+.lg{display:flex;flex-wrap:wrap;align-items:center;gap:7px;font-family:var(--f-mono);font-size:9.5px;
+    letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin-top:12px}
+.lg i{width:16px;height:8px;display:block;border-radius:1px}
+
+/* detalle */
+.seg{display:grid;grid-template-columns:auto minmax(0,1fr);gap:3px 11px;font-family:var(--f-mono);
+     font-size:10.5px;color:var(--mute);margin-top:6px}
+.seg b{color:var(--ink-2);font-weight:500}
+.ver{display:inline-block;margin-top:5px;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.06em;
+     color:var(--teal);text-decoration:none;border-bottom:1px solid currentColor;white-space:nowrap}
+.ver:hover{color:var(--ink)}
+footer{font-family:var(--f-mono);font-size:10.5px;line-height:1.8;color:var(--faint);margin-top:18px}
+#tip{position:fixed;z-index:50;pointer-events:none;background:var(--panel);color:var(--ink);
+     border:1px solid var(--line-2);border-radius:3px;padding:7px 10px;font-family:var(--f-mono);font-size:11px;
+     line-height:1.6;box-shadow:0 5px 18px rgba(8,16,28,.2);max-width:220px}
+#tip b{font-weight:600}#tip .tp{font-size:13px;font-weight:600;display:block;margin-bottom:2px}
+@media(max-width:860px){.row{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <div class="hdr">
+    <span class="tick">SYD<b>/</b>EZE</span>
+    <span class="chip">ida <b id="h-ida">10 dic – 20 dic 2026</b></span>
+    <span class="chip">vuelta <b id="h-vta">20 feb – 25 feb 2027</b></span>
+    <span class="chip" id="h-pax">1 adulto · económica</span>
+    <span class="stale" id="h-st"><i></i><span id="h-upd">sin corridas todavía</span></span>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="row">
+    <div class="pnl">
+      <h2>Mejor precio diario <em id="ch-rng"></em></h2>
+      <div class="bd">
+        <p class="nada" id="ch-nada">La curva necesita al menos dos corridas.<br>Con una sola medición no hay tendencia que dibujar.</p>
+        <svg class="ch" id="ch" viewBox="0 0 620 230" preserveAspectRatio="none" hidden aria-label="Mejor precio por día"></svg>
+      </div>
+    </div>
+    <div class="pnl">
+      <h2>Ranking de operadores <em id="rk-sub"></em></h2>
+      <div class="bd" id="rk">
+        <p class="nada">Acá van las tres mejores ofertas de la combinación más barata, con aerolínea, escalas y de qué fuente salió cada precio.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="pnl" style="margin-top:16px">
+    <h2>Matriz ida × vuelta <em id="mx-rng"></em></h2>
+    <div class="bd">
+      <div class="mxwrap"><table class="mx" id="mx"></table></div>
+      <div class="lg"><span>más barato</span><span id="lg-sw" style="display:inline-flex;gap:2px"></span>
+        <span>más caro</span><span style="margin-left:8px">▨ sin medir</span>
+        <span style="margin-left:8px;color:var(--teal)">▭ mínimo</span></div>
+      <p class="nada" id="mx-nada" style="margin-top:13px">Cada celda es una combinación de ida y vuelta. Se llenan por rotación a medida que la rutina las consulta; clic en una para ver el detalle.</p>
+    </div>
+  </div>
+
+  <div class="pnl" id="det" style="margin-top:16px" hidden>
+    <h2 id="det-t">Detalle</h2>
+    <div class="bd" id="det-b"></div>
+  </div>
+
+  <footer id="foot">Tarifas de referencia con impuestos y tasas, por 1 adulto en económica. Valores indicativos: no constituyen una reserva.</footer>
+</div>
+<div id="tip" hidden></div>
+
+<script>
+"use strict";
+const MES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+const $=i=>document.getElementById(i);
+const SEQ=["--s0","--s1","--s2","--s3","--s4","--s5","--s6"];
+const fd=s=>{if(!s)return"—";const[,m,d]=s.split("-");return`${+d} ${MES[+m-1]}`};
+const fdl=s=>{if(!s)return"—";const[y,m,d]=s.split("-");return`${+d} ${MES[+m-1]} ${y}`};
+const fh=t=>t?(t.split("T")[1]||"").slice(0,5):"";
+const fn=n=>n==null?"—":new Intl.NumberFormat("es-AR",{maximumFractionDigits:0}).format(Math.round(n));
+const idc=(i,v)=>`${i}_${v}`;
+function dias(iso){if(!iso)return null;const h=new Date(),[y,m,d]=iso.split("-").map(Number);
+  return Math.round((Date.UTC(h.getUTCFullYear(),h.getUTCMonth(),h.getUTCDate())-Date.UTC(y,m-1,d))/864e5)}
+function hace(iso){const n=dias(iso);if(n==null)return"";return n<=0?"hoy":n===1?"ayer":`hace ${n} días`}
+
+const tip=$("tip");
+function verTip(h,x,y){tip.innerHTML=h;tip.hidden=false;const r=tip.getBoundingClientRect();
+  let l=x+13,t=y-r.height-11;
+  if(l+r.width>innerWidth-8)l=x-r.width-13; if(l<8)l=8; if(t<8)t=y+18;
+  tip.style.left=l+"px";tip.style.top=t+"px"}
+const noTip=()=>{tip.hidden=true};
+addEventListener("scroll",noTip,{passive:true});
+
+let estado=null, combos=new Map(), corridas=[], sel=null;
+const moneda=()=>(estado&&estado.moneda)||"USD";
+
+function render(){barra();indicadores();serie();ranking();matriz();detalle()}
+
+function barra(){
+  if(!estado)return;
+  const g=estado.grilla||{};
+  if(g.idas&&g.idas.length) $("h-ida").textContent=`${fd(g.idas[0])} – ${fdl(g.idas.at(-1))}`;
+  if(g.vueltas&&g.vueltas.length) $("h-vta").textContent=`${fd(g.vueltas[0])} – ${fdl(g.vueltas.at(-1))}`;
+  if(estado.pasajeros) $("h-pax").textContent=`${estado.pasajeros} · económica`;
+  $("h-upd").textContent=estado.fecha?`actualizado ${hace(estado.fecha)}`:"sin corridas todavía";
+  $("h-st").className="stale"+(estado.fecha&&dias(estado.fecha)<=1?" viva":"");
+  const f=estado.fuentes;
+  $("foot").innerHTML=(f&&f.length?`Fuentes consultadas: ${f.join(" · ")}. `:"")+
+    "Tarifas de referencia con impuestos y tasas, por 1 adulto en económica. Valores indicativos: no constituyen una reserva.";
+}
+
+function sparkline(a,w=150,h=26){
+  if(a.length<2)return"";
+  const lo=Math.min(...a),hi=Math.max(...a),R=hi-lo||1;
+  const d=a.map((v,i)=>`${i?"L":"M"}${(w*i/(a.length-1)).toFixed(1)},${(h-(v-lo)/R*h).toFixed(1)}`).join("");
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+    <path d="${d}L${w},${h}L0,${h}Z" fill="var(--teal)" opacity=".1"/>
+    <path d="${d}" fill="none" stroke="var(--teal)" stroke-width="1.6" stroke-linejoin="round"/>
+    <circle cx="${w}" cy="${(h-(a.at(-1)-lo)/R*h).toFixed(1)}" r="2.4" fill="var(--teal)"/></svg>`;
+}
+
+function indicadores(){
+  const m=estado&&estado.mejor, min=estado&&estado.minimo_historico;
+  const serie=corridas.filter(c=>c.precio!=null).map(c=>c.precio);
+  const vals=[...combos.values()].map(c=>c.precio).filter(p=>p!=null);
+  const prom=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;
+  let v7=null, base=null;
+  if(serie.length>=2){base=serie[Math.max(0,serie.length-8)]; v7=(serie.at(-1)-base)/base*100}
+  const g=estado&&estado.grilla||{};
+  const tiles=[
+    {k:"Mejor precio hoy", n:m?fn(m.precio):"—", cur:m?moneda():"",
+     d:m?`${fd(m.ida)} → ${fd(m.vuelta)}`:"esperando la primera corrida", sp:serie},
+    {k:"Variación 7 días", n:v7==null?"—":`${v7>0?"+":""}${v7.toFixed(1)}%`,
+     d:v7==null?"hacen falta más mediciones":`desde ${moneda()} ${fn(base)}`,
+     cls:v7==null?"":(v7<=0?"down":"up")},
+    {k:"Mínimo de la serie", n:min?fn(min.precio):"—", cur:min?moneda():"",
+     d:min?`registrado ${fdl(min.fecha)}`:"sin registro", cls:min?"down":""},
+    {k:"Promedio de la grilla", n:prom?fn(prom):"—", cur:prom?moneda():"",
+     d:`${vals.length}/${g.total??"—"} combinaciones medidas`},
+  ];
+  $("kpis").innerHTML=tiles.map(t=>`<div class="kpi"><div class="k">${t.k}</div>
+    <div class="n${t.n==="—"?" vacio":""}">${t.cur?`<small>${t.cur}</small>`:""}${t.n}</div>
+    <div class="d ${t.cls||""}">${t.d}</div>${t.sp&&t.sp.length>1?sparkline(t.sp):""}</div>`).join("");
+}
+
+function serie(){
+  const P=corridas.filter(c=>c.precio!=null);
+  const svg=$("ch");
+  $("ch-nada").hidden=P.length>=2; svg.hidden=P.length<2;
+  $("ch-rng").textContent=P.length?`${fd(P[0].fecha)} – ${fd(P.at(-1).fecha)} · ${P.length} medicion${P.length===1?"":"es"}`:"";
+  if(P.length<2)return;
+  const W=620,H=230,L=46,R=12,T=14,B=24;
+  const min=estado&&estado.minimo_historico?estado.minimo_historico.precio:null;
+  const ys=P.map(p=>p.precio);
+  let lo=Math.min(...ys,min??Infinity), hi=Math.max(...ys);
+  const pad=(hi-lo)*.18||Math.max(hi*.04,1); lo-=pad; hi+=pad;
+  const X=i=>L+(W-L-R)*i/(P.length-1), Y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
+  let s="";
+  for(let k=0;k<=4;k++){const v=lo+(hi-lo)*k/4,y=Y(v).toFixed(1);
+    s+=`<line class="g" x1="${L}" y1="${y}" x2="${W-R}" y2="${y}"/>`+
+       `<text class="tx" x="${L-8}" y="${y}" text-anchor="end" dominant-baseline="middle">${fn(v)}</text>`}
+  const d=P.map((p,i)=>`${i?"L":"M"}${X(i).toFixed(1)},${Y(p.precio).toFixed(1)}`).join("");
+  s+=`<path class="fl" d="${d}L${X(P.length-1).toFixed(1)},${H-B}L${L},${H-B}Z"/>`;
+  if(min!=null&&min>=lo&&min<=hi){const ym=Y(min).toFixed(1);
+    s+=`<line class="ref" x1="${L}" y1="${ym}" x2="${W-R}" y2="${ym}"/>`+
+       `<text class="reftx" x="${W-R}" y="${(+ym)-5}" text-anchor="end">mín ${fn(min)}</text>`}
+  s+=`<path class="ln" d="${d}"/>`+
+     `<circle class="pt" cx="${X(P.length-1).toFixed(1)}" cy="${Y(P.at(-1).precio).toFixed(1)}" r="4"/>`;
+  const st=Math.max(1,Math.ceil(P.length/6));
+  P.forEach((p,i)=>{if(i%st===0||i===P.length-1)
+    s+=`<text class="tx" x="${X(i).toFixed(1)}" y="${H-6}" text-anchor="middle">${fd(p.fecha)}</text>`});
+  s+=`<line class="cur" id="cl" x1="0" y1="${T}" x2="0" y2="${H-B}" opacity="0"/>`+
+     `<rect class="hit" x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}"/>`;
+  svg.innerHTML=s;
+  const hit=svg.querySelector(".hit"), cl=svg.querySelector("#cl");
+  hit.addEventListener("mousemove",e=>{
+    const b=svg.getBoundingClientRect(), px=(e.clientX-b.left)/b.width*W;
+    let i=Math.round((px-L)/((W-L-R)||1)*(P.length-1));
+    i=Math.max(0,Math.min(P.length-1,i));
+    cl.setAttribute("x1",X(i));cl.setAttribute("x2",X(i));cl.setAttribute("opacity","1");
+    const p=P[i], ids=p.id?p.id.split("_"):null;
+    verTip(`<span class="tp">${moneda()} ${fn(p.precio)}</span>${fdl(p.fecha)}`+
+      (ids?`<br>ida <b>${fd(ids[0])}</b> · vuelta <b>${fd(ids[1])}</b>`:""),e.clientX,e.clientY)});
+  hit.addEventListener("mouseleave",()=>{cl.setAttribute("opacity","0");noTip()});
+}
+
+function agencias(lista,precioItin,precioCombo){
+  if(!lista||!lista.length)return"";
+  // El itinerario que se cotiza puede no ser exactamente el del precio de arriba.
+  const dif = precioItin&&precioCombo&&Math.abs(precioItin-precioCombo)>1;
+  return `<div class="vende"><div class="k">Vendido por`+
+    (dif?` <span style="text-transform:none;letter-spacing:0">· sobre un itinerario de ${moneda()} ${fn(precioItin)}</span>`:"")+
+    `</div>`+
+    lista.slice(0,5).map((a,i)=>`<div class="ag${i?"":" mejor"}">
+      <span><b>${a.agencia}</b>${a.tramo&&a.tramo!=="todo"?`<span class="t">sólo ${a.tramo}</span>`:""}</span>
+      <span class="n">${moneda()} ${fn(a.precio)}</span></div>`).join("")+`</div>`;
+}
+
+function escalas(t){
+  if(!t||!t.escalas)return"directo";
+  const v=(t.via||[]).filter(Boolean);
+  return v.length?`${t.escalas} vía ${v.join(", ")}`:`${t.escalas} escala${t.escalas>1?"s":""}`;
+}
+
+function chipsFuente(pf){
+  if(!pf)return"";
+  const e=Object.entries(pf).sort((a,b)=>a[1]-b[1]);
+  if(!e.length)return"";
+  return e.map(([f,p],i)=>`<span class="src"${i?' style="background:transparent;color:var(--faint);border:1px solid var(--line-2)"':""}>${f} ${fn(p)}</span>`).join("");
+}
+
+function ranking(){
+  const m=estado&&estado.mejor;
+  const ops=m&&m.opciones||[];
+  $("rk-sub").textContent=m?`${fd(m.ida)} → ${fd(m.vuelta)}`:"";
+  if(!ops.length){
+    $("rk").innerHTML=`<p class="nada">Acá van las tres mejores ofertas de la combinación más barata, con aerolínea, escalas y de qué fuente salió cada precio.</p>`;
+    return}
+  const combo=combos.get(idc(m.ida,m.vuelta));
+  $("rk").innerHTML=ops.map((o,i)=>{
+    const t=(tag,x)=>x?`<span class="tagd ${x.escalas?"":"ok"}">${tag} ${escalas(x)}</span>${x.duracion||""}`:"";
+    return `<div class="rk">
+      <div class="ix">${String(i+1).padStart(2,"0")}</div>
+      <div><div class="nm">${o.aerolinea_nombre||o.aerolinea||"—"}${o.fuente?`<span class="src">${o.fuente}</span>`:""}</div>
+        <div class="mt">${t("ida",o.ida)}${o.ida&&o.vuelta?"<br>":""}${t("vta",o.vuelta)}</div></div>
+      <div><div class="pz">${fn(o.precio)}</div>
+        <div class="dl"${i?"":' style="color:var(--down)"'}>${i?`+${fn(o.precio-ops[0].precio)}`:"más barato"}</div></div>
+    </div>`}).join("")
+    +(combo&&combo.por_fuente&&Object.keys(combo.por_fuente).length>1
+      ? `<div class="rk" style="border-top:1px solid var(--line)"><div class="ix"></div>
+         <div class="mt" style="margin:0">por fuente ${chipsFuente(combo.por_fuente)}</div><div></div></div>`:"")
+    +agencias(m.agencias||(combo&&combo.agencias),
+              (combo&&combo.precio_itinerario)||m.precio_itinerario,
+              combo&&combo.precio);
+}
+
+function matriz(){
+  const g=(estado&&estado.grilla)||{}, idas=g.idas||[], vueltas=g.vueltas||[];
+  if(!idas.length||!vueltas.length){$("mx").innerHTML="";return}
+  const vals=[...combos.values()].map(c=>c.precio).filter(p=>p!=null);
+  const lo=vals.length?Math.min(...vals):0, hi=vals.length?Math.max(...vals):0;
+  const mid=estado.mejor?idc(estado.mejor.ida,estado.mejor.vuelta):null;
+  $("mx-rng").textContent=vals.length?`${moneda()} · ${vals.length} celdas con dato`:"";
+  $("mx-nada").hidden=vals.length>0;
+  let h=`<thead><tr><th></th>${vueltas.map(v=>`<th>${fd(v)}</th>`).join("")}</tr></thead><tbody>`;
+  idas.forEach(ida=>{
+    h+=`<tr><th class="rw">${fd(ida)}</th>`;
+    vueltas.forEach(v=>{
+      const id=idc(ida,v), c=combos.get(id);
+      if(!c||c.precio==null){
+        h+=`<td><button type="button" class="c na" disabled aria-label="${fdl(ida)} a ${fdl(v)}: sin medir"></button></td>`;return}
+      const k=hi>lo?Math.round((c.precio-lo)/(hi-lo)*(SEQ.length-1)):0;
+      const cls=(id===mid?" best":"")+(id===sel?" sel":"");
+      h+=`<td><button type="button" class="c${cls}" data-id="${id}"
+           style="background:var(${SEQ[k]});color:var(${k>=4?"--on-hi":"--on-lo"})"
+           aria-label="${fdl(ida)} a ${fdl(v)}: ${moneda()} ${fn(c.precio)}">${fn(c.precio)}</button></td>`});
+    h+="</tr>"});
+  $("mx").innerHTML=h+"</tbody>";
+  $("lg-sw").innerHTML=SEQ.map(v=>`<i style="background:var(${v})"></i>`).join("");
+  $("mx").querySelectorAll(".c[data-id]").forEach(el=>{
+    const c=combos.get(el.dataset.id);
+    const html=`<span class="tp">${moneda()} ${fn(c.precio)}</span>ida <b>${fdl(c.ida)}</b><br>vuelta <b>${fdl(c.vuelta)}</b><br>`+
+      (c.opciones&&c.opciones[0]?`${c.opciones[0].aerolinea_nombre||""}<br>`:"")+`medido ${hace(c.visto)}`;
+    el.addEventListener("mouseenter",e=>verTip(html,e.clientX,e.clientY));
+    el.addEventListener("mousemove",e=>verTip(html,e.clientX,e.clientY));
+    el.addEventListener("mouseleave",noTip);
+    el.addEventListener("click",()=>{sel=sel===el.dataset.id?null:el.dataset.id;render()})});
+}
+
+function detalle(){
+  const c=sel?combos.get(sel):null;
+  $("det").hidden=!c;
+  if(!c)return;
+  $("det-t").innerHTML=`${fdl(c.ida)} → ${fdl(c.vuelta)} <em>medido ${hace(c.visto)}`+
+    (c.precio_previo?` · antes ${moneda()} ${fn(c.precio_previo)}`:"")+`</em>`;
+  const tr=(tag,t)=>!t?"":`<div class="seg"><b>${tag}</b><span>${t.duracion||""} · ${escalas(t)}</span>`+
+    (t.segmentos||[]).map(s=>`<span></span><span>${s.de} ${fh(s.sale)} → ${s.a} ${fh(s.llega)} · ${s.vuelo} · ${s.duracion||""}</span>`).join("")+`</div>`;
+  $("det-b").innerHTML=(c.opciones||[]).map((o,i)=>`
+    <div class="rk"><div class="ix">${String(i+1).padStart(2,"0")}</div>
+      <div><div class="nm">${o.aerolinea_nombre||o.aerolinea||"—"}${o.fuente?`<span class="src">${o.fuente}</span>`:""}</div>
+        ${tr("Ida",o.ida)}${tr("Vuelta",o.vuelta)}</div>
+      <div style="text-align:right"><div class="pz">${fn(o.precio)}</div>
+        ${o.enlace?`<a class="ver" href="${o.enlace}" target="_blank" rel="noopener noreferrer">ver oferta ↗</a>`:""}</div>
+      </div>`).join("")
+    ||`<p class="nada">Sin ofertas registradas para esta combinación.</p>`;
+}
+
+render();
+(async()=>{
+  const db=await claude.use("db");
+  if(!db)return;                       // la página queda en su estado vacío, que ya es legible
+  const falla=e=>console.warn("db:",e&&e.code);
+  db.doc("estado/actual").onSnapshot(s=>{estado=s.exists?s.data():null;render()},falla);
+  db.collection("combos").onSnapshot(s=>{combos=new Map(s.docs.map(d=>[d.id,d.data()]));render()},falla);
+  db.collection("corridas").orderBy("fecha","asc").limit(400)
+    .onSnapshot(s=>{corridas=s.docs.map(d=>d.data());render()},falla);
+})();
+</script>
